@@ -4,6 +4,8 @@ This repo now contains a minimal [AWS Amplify Gen 2](https://docs.amplify.aws/) 
 
 - `amplify/functions/hello-lambda2/handler.ts`
 
+The Lambda now executes SQL against Aurora/RDS Data API and returns rows as JSON.
+
 Deployment is handled by:
 
 - `.github/workflows/deploy-amplify-lambda.yml`
@@ -44,3 +46,33 @@ If Amplify Console branch builds are enabled, `/Users/kyryll/Downloads/lambda-te
 
 - a backend no-op (backend deploy is done by GitHub Actions to avoid duplicate/racing deploys)
 - a minimal required `frontend` build/artifact definition
+
+## DB Secrets For Lambda
+
+Set these Amplify backend secrets for the branch/environment:
+
+- `DB_CLUSTER_ARN`
+- `DB_SECRET_ARN`
+- `DB_NAME`
+
+The function uses default SQL:
+
+```sql
+SELECT * FROM users;
+```
+
+You can override SQL per request (demo mode only) using `sql` in query string or JSON body.
+
+## Calling Lambda URL
+
+`amplify/backend.ts` creates a Lambda Function URL and exposes it in backend outputs as:
+
+- `custom.helloLambda2Url`
+
+Examples:
+
+```sh
+curl "$LAMBDA_URL"
+curl "$LAMBDA_URL?sql=SELECT%201"
+curl -X POST "$LAMBDA_URL" -H "content-type: application/json" -d '{"sql":"SELECT now()"}'
+```

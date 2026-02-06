@@ -7,9 +7,13 @@
     "sandbox": "npx ampx sandbox",
     "deploy:backend": "npx ampx pipeline-deploy"
   },
+  "dependencies": {
+    "@aws-sdk/client-rds-data": "latest"
+  },
   "devDependencies": {
     "@aws-amplify/backend": "latest",
     "@aws-amplify/backend-cli": "latest",
+    "@types/node": "latest",
     "@types/aws-lambda": "latest",
     "typescript": "latest"
   }
