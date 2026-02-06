@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "amplify/**"
-      - "package.json"
-      - "package-lock.json"
-      - "tsconfig.json"
-      - ".github/workflows/deploy-amplify-lambda.yml"
   workflow_dispatch:
 
 permissions:

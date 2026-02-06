@@ -7,6 +7,7 @@ This repo now contains a minimal [AWS Amplify Gen 2](https://docs.amplify.aws/) 
 Deployment is handled by:
 
 - `.github/workflows/deploy-amplify-lambda.yml`
+- `amplify.yml` (Amplify Console buildspec override, if branch auto-build is enabled)
 
 ## Required GitHub Secrets
 
@@ -39,4 +40,7 @@ npx ampx pipeline-deploy --branch "$GITHUB_REF_NAME" --app-id "$AMPLIFY_APP_ID"
 
 This deploys the backend defined in `amplify/backend.ts`, including the Lambda function.
 
-If Amplify Console branch builds are enabled, `/Users/kyryll/Downloads/lambda-terraform-test1/amplify.yml` is used and runs `npm install` (not `npm ci`) to avoid lockfile-related build failures.
+If Amplify Console branch builds are enabled, `/Users/kyryll/Downloads/lambda-terraform-test1/amplify.yml` provides:
+
+- backend deploy commands (`npm install` + `ampx pipeline-deploy`)
+- a minimal required `frontend` build/artifact definition
