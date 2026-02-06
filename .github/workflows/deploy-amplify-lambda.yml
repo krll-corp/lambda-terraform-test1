@@ -41,6 +41,7 @@ jobs:
           [ -n "$AWS_REGION" ] || { echo "Missing AWS region. Set repo variable AWS_REGION or secret AWS_REGION."; exit 1; }
           [ -n "$AWS_ROLE_TO_ASSUME" ] || { echo "Missing secret AWS_ROLE_TO_ASSUME."; exit 1; }
           [ -n "$AMPLIFY_APP_ID" ] || { echo "Missing secret AMPLIFY_APP_ID."; exit 1; }
+          [[ "$AWS_ROLE_TO_ASSUME" == arn:aws:iam::*:role/* ]] || { echo "AWS_ROLE_TO_ASSUME must be a full IAM role ARN (arn:aws:iam::<account-id>:role/<role-name>), not just a role name."; exit 1; }
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
