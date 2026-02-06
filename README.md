@@ -76,3 +76,17 @@ curl "$LAMBDA_URL"
 curl "$LAMBDA_URL?sql=SELECT%201"
 curl -X POST "$LAMBDA_URL" -H "content-type: application/json" -d '{"sql":"SELECT now()"}'
 ```
+
+## Show DB Data On Amplify Domain
+
+The hosted site (`amplify.yml`) now calls Lambda from the browser.
+
+Set Amplify Hosting environment variable:
+
+- `LAMBDA_URL` = your function URL (for `hello-lambda2`)
+
+Where to find it:
+
+- AWS Console -> Lambda -> `hello-lambda2` -> Function URL
+
+After setting `LAMBDA_URL`, trigger a new Amplify build so the frontend picks it up.
