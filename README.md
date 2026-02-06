@@ -2,7 +2,7 @@
 
 This repo now contains a minimal [AWS Amplify Gen 2](https://docs.amplify.aws/) backend with one Node.js Lambda function:
 
-- `amplify/functions/hello-lambda/handler.ts`
+- `amplify/functions/hello-lambda2/handler.ts`
 
 Deployment is handled by:
 
