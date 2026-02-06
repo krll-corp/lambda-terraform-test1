@@ -13,8 +13,10 @@ Deployment is handled by:
 Set these in your repository settings:
 
 - `AMPLIFY_APP_ID`: Your Amplify app ID.
-- `AWS_REGION`: AWS region for your Amplify app (example: `us-east-1`).
+- `AWS_REGION`: AWS region for your Amplify app (example: `us-east-1`). You can set this as either a repo variable or secret.
 - `AWS_ROLE_TO_ASSUME`: IAM role ARN that GitHub Actions can assume via OIDC.
+
+If you used **environment-level secrets**, the workflow job must target that environment (or the secrets resolve as empty).
 
 ## One-Time Amplify Setup
 
