@@ -12,7 +12,7 @@ frontend:
         - mkdir -p dist
     build:
       commands:
-        - printf '%s\n' '<!doctype html><html><body><h1>Amplify backend deployed</h1></body></html>' > dist/index.html
+        - printf '%s\n' '<!doctype html><html><body><h1>Amplify backend deployed!!!</h1></body></html>' > dist/index.html
   artifacts:
     baseDirectory: dist
     files:
