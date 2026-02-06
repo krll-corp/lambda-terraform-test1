@@ -106,6 +106,8 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   // Demo behavior: allow SQL from request; do not expose this to untrusted clients in production.
   const sql = getSql((event ?? {}) as QueryLikeEvent);
 
+  console.log('SQL command: ', sql);
+  
   try {
     const response = await rds.send(
       new ExecuteStatementCommand({
