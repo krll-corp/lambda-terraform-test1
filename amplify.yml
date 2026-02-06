@@ -14,75 +14,31 @@ frontend:
         - |
           cat > dist/index.html <<'HTML'
           <!doctype html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width,initial-scale=1" />
-            <title>Lambda DB Demo</title>
-            <style>
-              :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-              body { margin: 0; background: #f7f8fa; color: #111; }
-              main { max-width: 900px; margin: 40px auto; padding: 0 16px; }
-              h1 { margin: 0 0 12px; font-size: 28px; }
-              p, label { color: #333; }
-              textarea { width: 100%; min-height: 120px; margin-top: 8px; padding: 10px; font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
-              button { margin-top: 10px; padding: 10px 14px; cursor: pointer; border: 1px solid #1d4ed8; background: #2563eb; color: #fff; border-radius: 8px; }
-              pre { white-space: pre-wrap; word-break: break-word; background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 8px; overflow: auto; }
-              .muted { color: #6b7280; font-size: 13px; }
-            </style>
-          </head>
-          <body>
-            <main>
-              <h1>Lambda DB Demo</h1>
-              <p class="muted">This page calls your Lambda Function URL and shows DB output.</p>
-              <label for="sql">SQL (demo only):</label>
-              <textarea id="sql">SELECT * FROM users;</textarea>
-              <br />
-              <button id="run">Run SQL</button>
-              <p id="status" class="muted"></p>
-              <pre id="result">Waiting for query...</pre>
-            </main>
-            <script src="/config.js"></script>
-            <script>
-              const statusEl = document.getElementById("status");
-              const resultEl = document.getElementById("result");
-              const sqlEl = document.getElementById("sql");
-              const runBtn = document.getElementById("run");
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1" />
+          <title>DB Response</title>
+          <pre id="out"></pre>
+          <script src="/config.js"></script>
+          <script>
+            (async () => {
+              const fallbackUrl = "https://pz7iziac2xdwumllpfp6x7psgu0pehgk.lambda-url.eu-central-1.on.aws/";
+              const baseUrl = (window.__LAMBDA_URL__ || "").trim() || fallbackUrl;
+              const target = new URL(baseUrl);
+              const incomingParams = new URLSearchParams(window.location.search);
 
-              const lambdaUrl = (window.__LAMBDA_URL__ || "").trim();
+              for (const [key, value] of incomingParams.entries()) {
+                target.searchParams.set(key, value);
+              }
 
-              const run = async () => {
-                if (!lambdaUrl) {
-                  statusEl.textContent = "Missing LAMBDA_URL env var in Amplify Hosting.";
-                  resultEl.textContent = "Set LAMBDA_URL in Amplify Hosting -> Environment variables.";
-                  return;
-                }
-                statusEl.textContent = "Running query...";
-                try {
-                  const response = await fetch(lambdaUrl, {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ sql: sqlEl.value }),
-                  });
-                  const text = await response.text();
-                  try {
-                    const json = JSON.parse(text);
-                    resultEl.textContent = JSON.stringify(json, null, 2);
-                  } catch {
-                    resultEl.textContent = text;
-                  }
-                  statusEl.textContent = "Done.";
-                } catch (err) {
-                  statusEl.textContent = "Request failed.";
-                  resultEl.textContent = String(err);
-                }
-              };
-
-              runBtn.addEventListener("click", run);
-              run();
-            </script>
-          </body>
-          </html>
+              try {
+                const response = await fetch(target.toString(), { method: "GET" });
+                const text = await response.text();
+                document.getElementById("out").textContent = text;
+              } catch (err) {
+                document.getElementById("out").textContent = String(err);
+              }
+            })();
+          </script>
           HTML
         - |
           node -e 'const fs=require("fs"); const url=process.env.LAMBDA_URL || ""; fs.writeFileSync("dist/config.js", `window.__LAMBDA_URL__=${JSON.stringify(url)};`);'
