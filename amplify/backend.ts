@@ -1,6 +1,6 @@
 import { defineBackend } from "@aws-amplify/backend";
-import { helloLambda } from "./functions/hello-lambda2/resource.js";
+import { helloLambda2 } from "./functions/hello-lambda2/resource.js";
 
 defineBackend({
-  helloLambda,
+  helloLambda2,
 });
