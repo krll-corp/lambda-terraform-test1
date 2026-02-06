@@ -38,3 +38,5 @@ npx ampx pipeline-deploy --branch "$GITHUB_REF_NAME" --app-id "$AMPLIFY_APP_ID"
 ```
 
 This deploys the backend defined in `amplify/backend.ts`, including the Lambda function.
+
+If Amplify Console branch builds are enabled, `/Users/kyryll/Downloads/lambda-terraform-test1/amplify.yml` is used and runs `npm install` (not `npm ci`) to avoid lockfile-related build failures.
