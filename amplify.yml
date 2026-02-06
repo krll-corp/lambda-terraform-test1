@@ -3,8 +3,7 @@ backend:
   phases:
     build:
       commands:
-        - npm install --cache .npm --prefer-offline
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - echo "Skipping backend deploy in Amplify Console (handled by GitHub Actions)"
 frontend:
   phases:
     preBuild:
@@ -17,6 +16,3 @@ frontend:
     baseDirectory: dist
     files:
       - '**/*'
-  cache:
-    paths:
-      - .npm/**/*

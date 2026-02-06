@@ -42,5 +42,5 @@ This deploys the backend defined in `amplify/backend.ts`, including the Lambda f
 
 If Amplify Console branch builds are enabled, `/Users/kyryll/Downloads/lambda-terraform-test1/amplify.yml` provides:
 
-- backend deploy commands (`npm install` + `ampx pipeline-deploy`)
+- a backend no-op (backend deploy is done by GitHub Actions to avoid duplicate/racing deploys)
 - a minimal required `frontend` build/artifact definition
