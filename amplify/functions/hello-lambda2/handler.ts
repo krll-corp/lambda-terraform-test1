@@ -6,7 +6,9 @@ import {
 } from "@aws-sdk/client-rds-data";
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 
-const rds = new RDSDataClient({});
+const rds = new RDSDataClient({
+  maxAttempts: 4
+});
 
 type QueryLikeEvent = {
   body?: string | null;
@@ -16,11 +18,8 @@ type QueryLikeEvent = {
 
 const defaultSql = "SELECT * FROM users;";
 
-let log_message = '';
-
 const getSql = (event: QueryLikeEvent): string => {
   if (typeof event?.queryStringParameters?.sql === "string" && event.queryStringParameters.sql.trim()) {
-    log_message = `case 1, ${event.queryStringParameters.sql.trim()}`
     return event.queryStringParameters.sql.trim();
   }
 
@@ -28,21 +27,18 @@ const getSql = (event: QueryLikeEvent): string => {
     try {
       const parsed = JSON.parse(event.body) as { sql?: unknown };
       if (typeof parsed.sql === "string" && parsed.sql.trim()) {
-        log_message = `case 2 (body): ${parsed.sql.trim()}`
+
         return parsed.sql.trim();
       }
     } catch {
-      log_message = 'case 2 failed';
       // Ignore invalid JSON body and keep fallback behavior.
     }
   }
 
   if (typeof event?.sql === "string" && event.sql.trim()) {
-    log_message = `case 3 (uri): ${event.sql.trim()}`;
     return event.sql.trim();
   }
 
-  log_message = 'case 4, default';
   return defaultSql;
 };
 
@@ -138,8 +134,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         sql,
         time: new Date().toISOString(),
         numberOfRecordsUpdated: response.numberOfRecordsUpdated,
-        records,
-        log_message
+        records
       }),
     };
   } catch (error) {
