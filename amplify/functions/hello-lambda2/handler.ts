@@ -42,7 +42,7 @@ const getSql = (event: QueryLikeEvent): string => {
     return event.sql.trim();
   }
 
-  log_messaage = 'case 4, default';
+  log_message = 'case 4, default';
   return defaultSql;
 };
 
