@@ -8,13 +8,15 @@
     "deploy:backend": "npx ampx pipeline-deploy"
   },
   "dependencies": {
-    "@aws-sdk/client-rds-data": "latest"
+    "@aws-sdk/client-rds-data": "latest",
+    "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
+    "@aws/aurora-dsql-postgresjs-connector": "^0.2.1"
   },
   "devDependencies": {
     "@aws-amplify/backend": "latest",
     "@aws-amplify/backend-cli": "latest",
-    "@types/node": "latest",
     "@types/aws-lambda": "latest",
+    "@types/node": "latest",
     "typescript": "latest"
   }
 }

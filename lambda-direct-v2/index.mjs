@@ -1,0 +1,138 @@
+import { ExecuteStatementCommand, RDSDataClient } from "@aws-sdk/client-rds-data";
+
+const rds = new RDSDataClient({});
+const defaultSql = "SELECT * FROM users;";
+
+const getSql = (event = {}) => {
+  if (typeof event?.queryStringParameters?.sql === "string" && event.queryStringParameters.sql.trim()) {
+    return event.queryStringParameters.sql.trim();
+  }
+
+  if (typeof event?.body === "string" && event.body.trim()) {
+    try {
+      const parsed = JSON.parse(event.body);
+      if (typeof parsed?.sql === "string" && parsed.sql.trim()) {
+        return parsed.sql.trim();
+      }
+    } catch {
+      // Keep default behavior when the body is not valid JSON.
+    }
+  }
+
+  if (typeof event?.sql === "string" && event.sql.trim()) {
+    return event.sql.trim();
+  }
+
+  return defaultSql;
+};
+
+const arrayValueToValue = (arrayValue) => {
+  if (!arrayValue || typeof arrayValue !== "object") {
+    return null;
+  }
+  if ("booleanValues" in arrayValue) {
+    return arrayValue.booleanValues;
+  }
+  if ("longValues" in arrayValue) {
+    return arrayValue.longValues;
+  }
+  if ("doubleValues" in arrayValue) {
+    return arrayValue.doubleValues;
+  }
+  if ("stringValues" in arrayValue) {
+    return arrayValue.stringValues;
+  }
+  if ("arrayValues" in arrayValue) {
+    return (arrayValue.arrayValues ?? []).map((value) => arrayValueToValue(value));
+  }
+  return null;
+};
+
+const fieldToValue = (field) => {
+  if (!field || ("isNull" in field && field.isNull)) {
+    return null;
+  }
+
+  if ("stringValue" in field) {
+    return field.stringValue;
+  }
+  if ("longValue" in field) {
+    return field.longValue;
+  }
+  if ("doubleValue" in field) {
+    return field.doubleValue;
+  }
+  if ("booleanValue" in field) {
+    return field.booleanValue;
+  }
+  if ("blobValue" in field) {
+    return Array.from(field.blobValue ?? []);
+  }
+  if ("arrayValue" in field) {
+    return field.arrayValue ? arrayValueToValue(field.arrayValue) : null;
+  }
+
+  return null;
+};
+
+export const handler = async (event = {}) => {
+  const dbClusterArn = process.env.DB_CLUSTER_ARN;
+  const dbSecretArn = process.env.DB_SECRET_ARN;
+  const dbName = process.env.DB_NAME;
+
+  if (!dbClusterArn || !dbSecretArn || !dbName) {
+    return {
+      statusCode: 500,
+      headers: {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        error: "Missing required DB environment variables.",
+        required: ["DB_CLUSTER_ARN", "DB_SECRET_ARN", "DB_NAME"]
+      })
+    };
+  }
+
+  const sql = getSql(event);
+
+  try {
+    const response = await rds.send(
+      new ExecuteStatementCommand({
+        resourceArn: dbClusterArn,
+        secretArn: dbSecretArn,
+        database: dbName,
+        sql
+      })
+    );
+
+    const records = (response.records ?? []).map((row) => row.map((col) => fieldToValue(col)));
+
+    return {
+      statusCode: 200,
+      headers: {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        sql,
+        time: new Date().toISOString(),
+        numberOfRecordsUpdated: response.numberOfRecordsUpdated,
+        records
+      })
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      headers: {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        error: "Failed to execute SQL statement.",
+        details: error instanceof Error ? error.message : String(error),
+        sql
+      })
+    };
+  }
+};

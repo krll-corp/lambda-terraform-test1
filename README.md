@@ -90,3 +90,32 @@ Where to find it:
 - AWS Console -> Lambda -> `hello-lambda2` -> Function URL
 
 After setting `LAMBDA_URL`, trigger a new Amplify build so the frontend picks it up.
+
+## Direct Lambda v2 (GitHub Actions)
+
+Workflow:
+
+- `/Users/kyryll/Downloads/lambda-terraform-test1/.github/workflows/deploy-direct-lambda-v2.yml`
+
+Trigger:
+
+- push to branch `codex/v2`
+- manual `workflow_dispatch`
+
+Behavior:
+
+- deploys with `aws lambda update-function-code` only
+- does not call `create-function` or `update-function-configuration`
+
+Required setup (once, manual):
+
+1. Create a new dedicated Lambda function (recommended name: `db-query-direct-v2-isolated`).
+2. Ensure runtime/handler/role/env/url are already configured.
+3. Optional: set repo variable `DIRECT_LAMBDA_NAME` if you want a different dedicated name.
+   The workflow blocks names that look like Amplify-managed lambdas.
+
+Dependency packaging mode:
+
+- `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=true` (default): zip includes `node_modules`.
+- `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false`: zip includes only `index.mjs`.
+  Use this when dependencies are provided via an already-attached Lambda layer.

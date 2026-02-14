@@ -1,0 +1,9 @@
+{
+  "name": "lambda-direct-v2",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-rds-data": "^3.821.0"
+  }
+}

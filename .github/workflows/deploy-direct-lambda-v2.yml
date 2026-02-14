@@ -1,0 +1,95 @@
+name: Deploy Direct Lambda v2
+
+on:
+  push:
+    branches:
+      - codex/v2
+  workflow_dispatch:
+
+concurrency:
+  group: direct-lambda-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      DIRECT_LAMBDA_NAME: ${{ vars.DIRECT_LAMBDA_NAME || 'db-query-direct-v2-isolated' }}
+      DIRECT_LAMBDA_INCLUDE_NODE_MODULES: ${{ vars.DIRECT_LAMBDA_INCLUDE_NODE_MODULES || 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate required configuration
+        run: |
+          [ -n "$AWS_REGION" ] || { echo "Missing AWS region. Set repo variable AWS_REGION or secret AWS_REGION."; exit 1; }
+          [ -n "$AWS_ROLE_TO_ASSUME" ] || { echo "Missing secret AWS_ROLE_TO_ASSUME."; exit 1; }
+          [[ "$AWS_ROLE_TO_ASSUME" == arn:aws:iam::*:role/* ]] || { echo "AWS_ROLE_TO_ASSUME must be a full IAM role ARN."; exit 1; }
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Package Lambda artifact
+        run: |
+          rm -f lambda-direct-v2.zip
+          if [ "${DIRECT_LAMBDA_INCLUDE_NODE_MODULES}" = "true" ]; then
+            echo "Packaging with node_modules in function zip."
+            cd lambda-direct-v2
+            npm install --omit=dev
+            zip -r ../lambda-direct-v2.zip index.mjs package.json node_modules
+          else
+            echo "Packaging code only (index.mjs)."
+            echo "Use this when dependencies are provided by a pre-attached Lambda layer."
+            cd lambda-direct-v2
+            zip -r ../lambda-direct-v2.zip index.mjs
+          fi
+
+      - name: Deploy Lambda code (update-function-code only)
+        id: deploy
+        run: |
+          LAMBDA_NAME="${DIRECT_LAMBDA_NAME}"
+          echo "Target function: $LAMBDA_NAME"
+
+          case "$LAMBDA_NAME" in
+            amplify-*|*hellolambda2lambda*)
+              echo "Refusing to deploy: DIRECT_LAMBDA_NAME points to an Amplify-managed lambda ($LAMBDA_NAME)."
+              echo "Use a dedicated direct lambda name (default: db-query-direct-v2-isolated)."
+              exit 1
+              ;;
+          esac
+
+          aws lambda get-function --function-name "$LAMBDA_NAME" >/dev/null 2>&1 || {
+            echo "Function '$LAMBDA_NAME' does not exist."
+            echo "Create it once manually (runtime nodejs20.x, handler index.handler, role/env/function-url), then rerun."
+            exit 1
+          }
+
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_NAME" \
+            --zip-file "fileb://lambda-direct-v2.zip" >/dev/null
+
+          aws lambda wait function-updated-v2 --function-name "$LAMBDA_NAME"
+
+          URL="$(aws lambda get-function-url-config --function-name "$LAMBDA_NAME" --query FunctionUrl --output text 2>/dev/null || true)"
+          echo "lambda_name=$LAMBDA_NAME" >> "$GITHUB_OUTPUT"
+          echo "lambda_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        run: |
+          echo "Direct lambda updated successfully."
+          echo "Name: ${{ steps.deploy.outputs.lambda_name }}"
+          echo "URL:  ${{ steps.deploy.outputs.lambda_url }}"
