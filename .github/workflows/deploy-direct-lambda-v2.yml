@@ -21,7 +21,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       DIRECT_LAMBDA_NAME: ${{ vars.DIRECT_LAMBDA_NAME || 'db-query-direct-v2-isolated' }}
-      DIRECT_LAMBDA_USE_LAYER: ${{ vars.DIRECT_LAMBDA_USE_LAYER || 'false' }}
+      DIRECT_LAMBDA_USE_LAYER: ${{ vars.DIRECT_LAMBDA_USE_LAYER || 'true' }}
       DIRECT_LAMBDA_INCLUDE_NODE_MODULES: ${{ vars.DIRECT_LAMBDA_INCLUDE_NODE_MODULES || 'false' }}
     steps:
       - name: Checkout
@@ -50,18 +50,9 @@ jobs:
         run: |
           rm -f lambda-direct-v2.zip
           if [ "${DIRECT_LAMBDA_USE_LAYER}" = "true" ]; then
-            echo "Packaging lean code for layer-based dependencies."
+            echo "Packaging code-only artifact (index.mjs). Dependencies are resolved from attached layer."
             cd lambda-direct-v2
-            npm install --omit=dev
-            npx esbuild index.mjs \
-              --bundle \
-              --platform=node \
-              --target=node20 \
-              --format=cjs \
-              --external:@aws/aurora-dsql-node-postgres-connector \
-              --outfile=dist/index.js
-            cd dist
-            zip -r ../../lambda-direct-v2.zip index.js
+            zip -r ../lambda-direct-v2.zip index.mjs
           elif [ "${DIRECT_LAMBDA_INCLUDE_NODE_MODULES}" = "true" ]; then
             echo "Packaging with node_modules in function zip."
             cd lambda-direct-v2

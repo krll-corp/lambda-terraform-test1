@@ -130,7 +130,7 @@ Required setup (once, manual):
 
 Dependency packaging mode:
 
-- `DIRECT_LAMBDA_USE_LAYER=true`: package lean code and resolve `@aws/aurora-dsql-node-postgres-connector` from Lambda layer.
+- `DIRECT_LAMBDA_USE_LAYER=true` (default): zip only `index.mjs`; resolve `@aws/aurora-dsql-node-postgres-connector` from Lambda layer.
   If no layer is attached, deployment fails fast with a clear error.
 - `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false` (default when `DIRECT_LAMBDA_USE_LAYER=false`): bundle dependencies into a single CommonJS `index.js` and zip only that file.
 - `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=true`: zip includes `index.mjs`, `package.json`, and `node_modules`.
