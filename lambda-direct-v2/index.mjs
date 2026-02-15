@@ -1,7 +1,7 @@
 import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
 
 const getSql = (event = {}) => {
-  const fallback = process.env.DSQL_DEFAULT_SQL || "SELECT * FROM users;";
+  const fallback = process.env.DSQL_DEFAULT_SQL || "SELECT count(*) FROM users;";
 
   if (typeof event?.queryStringParameters?.sql === "string" && event.queryStringParameters.sql.trim()) {
     return event.queryStringParameters.sql.trim();
