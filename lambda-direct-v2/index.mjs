@@ -28,6 +28,7 @@ const getSql = (event = {}) => {
 export const handler = async (event = {}) => {
   const host = process.env.DSQL_HOST;
   const user = process.env.DSQL_USER || "admin";
+  const database = process.env.DSQL_DATABASE || "postgres";
   const sql = getSql(event);
 
   if (!host) {
@@ -40,14 +41,16 @@ export const handler = async (event = {}) => {
       body: JSON.stringify({
         error: "Missing required environment variable DSQL_HOST.",
         required: ["DSQL_HOST"],
-        optional: ["DSQL_USER", "DSQL_DEFAULT_SQL"]
+        optional: ["DSQL_USER", "DSQL_DATABASE", "DSQL_DEFAULT_SQL"]
       })
     };
   }
 
   const client = new AuroraDSQLClient({
     host,
-    user
+    user,
+    username: user,
+    database
   });
 
   try {
@@ -62,6 +65,7 @@ export const handler = async (event = {}) => {
       },
       body: JSON.stringify({
         sql,
+        database,
         time: new Date().toISOString(),
         rowCount: result?.rowCount ?? 0,
         records: result?.rows ?? []

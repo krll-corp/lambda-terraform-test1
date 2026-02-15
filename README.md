@@ -115,6 +115,7 @@ Required setup (once, manual):
 3. Set function environment variables for Aurora DSQL:
    - `DSQL_HOST` (required, example: `xxxx.dsql.eu-central-1.on.aws`)
    - `DSQL_USER` (optional, default: `admin`)
+   - `DSQL_DATABASE` (optional, default: `postgres`)
    - `DSQL_DEFAULT_SQL` (optional, default: `SELECT * FROM users;`)
 4. Ensure the Lambda execution role has permissions to connect/query your Aurora DSQL resources.
 5. Do not set long-lived AWS access keys in Lambda env vars; Lambda should use execution-role credentials.
