@@ -21,7 +21,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       DIRECT_LAMBDA_NAME: ${{ vars.DIRECT_LAMBDA_NAME || 'db-query-direct-v2-isolated' }}
-      DIRECT_LAMBDA_INCLUDE_NODE_MODULES: ${{ vars.DIRECT_LAMBDA_INCLUDE_NODE_MODULES || 'true' }}
+      DIRECT_LAMBDA_INCLUDE_NODE_MODULES: ${{ vars.DIRECT_LAMBDA_INCLUDE_NODE_MODULES || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,10 +52,17 @@ jobs:
             npm install --omit=dev
             zip -r ../lambda-direct-v2.zip index.mjs package.json node_modules
           else
-            echo "Packaging code only (index.mjs)."
-            echo "Use this when dependencies are provided by a pre-attached Lambda layer."
+            echo "Packaging without node_modules by bundling dependencies into a single file."
             cd lambda-direct-v2
-            zip -r ../lambda-direct-v2.zip index.mjs
+            npm install --omit=dev
+            npx esbuild index.mjs \
+              --bundle \
+              --platform=node \
+              --target=node20 \
+              --format=esm \
+              --outfile=dist/index.mjs
+            cd dist
+            zip -r ../../lambda-direct-v2.zip index.mjs
           fi
 
       - name: Deploy Lambda code (update-function-code only)

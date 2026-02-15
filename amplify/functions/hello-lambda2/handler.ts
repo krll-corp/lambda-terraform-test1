@@ -14,7 +14,8 @@ type QueryLikeEvent = {
   sql?: string;
 };
 
-const defaultSql = "SELECT * FROM users;";
+//const defaultSql = "SELECT * FROM users;";
+const defaultSql = "SELECT count(*) FROM users;";
 
 const getSql = (event: QueryLikeEvent): string => {
   if (typeof event?.queryStringParameters?.sql === "string" && event.queryStringParameters.sql.trim()) {
