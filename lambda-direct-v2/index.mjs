@@ -1,9 +1,8 @@
-import { ExecuteStatementCommand, RDSDataClient } from "@aws-sdk/client-rds-data";
-
-const rds = new RDSDataClient({});
-const defaultSql = "SELECT * FROM users;";
+import { AuroraDSQLClient } from "@aws/aurora-dsql-node-postgres-connector";
 
 const getSql = (event = {}) => {
+  const fallback = process.env.DSQL_DEFAULT_SQL || "SELECT * FROM users;";
+
   if (typeof event?.queryStringParameters?.sql === "string" && event.queryStringParameters.sql.trim()) {
     return event.queryStringParameters.sql.trim();
   }
@@ -23,64 +22,15 @@ const getSql = (event = {}) => {
     return event.sql.trim();
   }
 
-  return defaultSql;
-};
-
-const arrayValueToValue = (arrayValue) => {
-  if (!arrayValue || typeof arrayValue !== "object") {
-    return null;
-  }
-  if ("booleanValues" in arrayValue) {
-    return arrayValue.booleanValues;
-  }
-  if ("longValues" in arrayValue) {
-    return arrayValue.longValues;
-  }
-  if ("doubleValues" in arrayValue) {
-    return arrayValue.doubleValues;
-  }
-  if ("stringValues" in arrayValue) {
-    return arrayValue.stringValues;
-  }
-  if ("arrayValues" in arrayValue) {
-    return (arrayValue.arrayValues ?? []).map((value) => arrayValueToValue(value));
-  }
-  return null;
-};
-
-const fieldToValue = (field) => {
-  if (!field || ("isNull" in field && field.isNull)) {
-    return null;
-  }
-
-  if ("stringValue" in field) {
-    return field.stringValue;
-  }
-  if ("longValue" in field) {
-    return field.longValue;
-  }
-  if ("doubleValue" in field) {
-    return field.doubleValue;
-  }
-  if ("booleanValue" in field) {
-    return field.booleanValue;
-  }
-  if ("blobValue" in field) {
-    return Array.from(field.blobValue ?? []);
-  }
-  if ("arrayValue" in field) {
-    return field.arrayValue ? arrayValueToValue(field.arrayValue) : null;
-  }
-
-  return null;
+  return fallback;
 };
 
 export const handler = async (event = {}) => {
-  const dbClusterArn = process.env.DB_CLUSTER_ARN;
-  const dbSecretArn = process.env.DB_SECRET_ARN;
-  const dbName = process.env.DB_NAME;
+  const host = process.env.DSQL_HOST;
+  const user = process.env.DSQL_USER || "admin";
+  const sql = getSql(event);
 
-  if (!dbClusterArn || !dbSecretArn || !dbName) {
+  if (!host) {
     return {
       statusCode: 500,
       headers: {
@@ -88,25 +38,21 @@ export const handler = async (event = {}) => {
         "access-control-allow-origin": "*"
       },
       body: JSON.stringify({
-        error: "Missing required DB environment variables.",
-        required: ["DB_CLUSTER_ARN", "DB_SECRET_ARN", "DB_NAME"]
+        error: "Missing required environment variable DSQL_HOST.",
+        required: ["DSQL_HOST"],
+        optional: ["DSQL_USER", "DSQL_DEFAULT_SQL"]
       })
     };
   }
 
-  const sql = getSql(event);
+  const client = new AuroraDSQLClient({
+    host,
+    user
+  });
 
   try {
-    const response = await rds.send(
-      new ExecuteStatementCommand({
-        resourceArn: dbClusterArn,
-        secretArn: dbSecretArn,
-        database: dbName,
-        sql
-      })
-    );
-
-    const records = (response.records ?? []).map((row) => row.map((col) => fieldToValue(col)));
+    await client.connect();
+    const result = await client.query(sql);
 
     return {
       statusCode: 200,
@@ -117,8 +63,8 @@ export const handler = async (event = {}) => {
       body: JSON.stringify({
         sql,
         time: new Date().toISOString(),
-        numberOfRecordsUpdated: response.numberOfRecordsUpdated,
-        records
+        rowCount: result?.rowCount ?? 0,
+        records: result?.rows ?? []
       })
     };
   } catch (error) {
@@ -129,10 +75,16 @@ export const handler = async (event = {}) => {
         "access-control-allow-origin": "*"
       },
       body: JSON.stringify({
-        error: "Failed to execute SQL statement.",
+        error: "Failed to execute DSQL query.",
         details: error instanceof Error ? error.message : String(error),
         sql
       })
     };
+  } finally {
+    try {
+      await client.end();
+    } catch {
+      // no-op
+    }
   }
 };

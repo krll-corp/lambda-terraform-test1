@@ -110,8 +110,15 @@ Behavior:
 Required setup (once, manual):
 
 1. Create a new dedicated Lambda function (recommended name: `db-query-direct-v2-isolated`).
-2. Ensure runtime/handler/role/env/url are already configured.
-3. Optional: set repo variable `DIRECT_LAMBDA_NAME` if you want a different dedicated name.
+2. Ensure runtime/handler/role/env/url are already configured:
+   handler: `index.handler`
+3. Set function environment variables for Aurora DSQL:
+   - `DSQL_HOST` (required, example: `xxxx.dsql.eu-central-1.on.aws`)
+   - `DSQL_USER` (optional, default: `admin`)
+   - `DSQL_DEFAULT_SQL` (optional, default: `SELECT * FROM users;`)
+4. Ensure the Lambda execution role has permissions to connect/query your Aurora DSQL resources.
+5. Do not set long-lived AWS access keys in Lambda env vars; Lambda should use execution-role credentials.
+6. Optional: set repo variable `DIRECT_LAMBDA_NAME` if you want a different dedicated name.
    The workflow blocks names that look like Amplify-managed lambdas.
 
 Dependency packaging mode:

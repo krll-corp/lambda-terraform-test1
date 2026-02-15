@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@aws-sdk/client-rds-data": "^3.821.0"
+    "@aws/aurora-dsql-node-postgres-connector": "latest"
   }
 }
