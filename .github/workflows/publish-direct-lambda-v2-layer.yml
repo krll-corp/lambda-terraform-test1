@@ -1,0 +1,118 @@
+name: Publish Direct Lambda v2 Layer
+
+on:
+  push:
+    branches:
+      - codex/v2
+    paths:
+      - lambda-direct-v2/package.json
+      - lambda-direct-v2/package-lock.json
+      - .github/workflows/publish-direct-lambda-v2-layer.yml
+  workflow_dispatch:
+
+concurrency:
+  group: direct-lambda-v2-layer-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish-layer:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      DIRECT_LAMBDA_NAME: ${{ vars.DIRECT_LAMBDA_NAME || 'db-query-direct-v2-isolated' }}
+      DIRECT_LAMBDA_LAYER_NAME: ${{ vars.DIRECT_LAMBDA_LAYER_NAME || 'db-query-direct-v2-deps' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate required configuration
+        run: |
+          [ -n "$AWS_REGION" ] || { echo "Missing AWS region. Set repo variable AWS_REGION or secret AWS_REGION."; exit 1; }
+          [ -n "$AWS_ROLE_TO_ASSUME" ] || { echo "Missing secret AWS_ROLE_TO_ASSUME."; exit 1; }
+          [[ "$AWS_ROLE_TO_ASSUME" == arn:aws:iam::*:role/* ]] || { echo "AWS_ROLE_TO_ASSUME must be a full IAM role ARN."; exit 1; }
+          [ -n "$DIRECT_LAMBDA_NAME" ] || { echo "Missing DIRECT_LAMBDA_NAME."; exit 1; }
+          [ -n "$DIRECT_LAMBDA_LAYER_NAME" ] || { echo "Missing DIRECT_LAMBDA_LAYER_NAME."; exit 1; }
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build layer artifact
+        run: |
+          rm -rf layer-build lambda-direct-v2-layer.zip
+          mkdir -p layer-build/nodejs
+          cp lambda-direct-v2/package.json layer-build/nodejs/package.json
+          if [ -f lambda-direct-v2/package-lock.json ]; then
+            cp lambda-direct-v2/package-lock.json layer-build/nodejs/package-lock.json
+          fi
+
+          cd layer-build/nodejs
+          if [ -f package-lock.json ]; then
+            npm ci --omit=dev
+          else
+            npm install --omit=dev
+          fi
+          cd ../..
+          cd layer-build
+          zip -r ../lambda-direct-v2-layer.zip nodejs
+
+      - name: Publish layer version
+        id: publish
+        run: |
+          LAYER_ARN="$(aws lambda publish-layer-version \
+            --layer-name "${DIRECT_LAMBDA_LAYER_NAME}" \
+            --description "Dependencies for ${DIRECT_LAMBDA_NAME} (${GITHUB_SHA})" \
+            --compatible-runtimes nodejs20.x \
+            --zip-file "fileb://lambda-direct-v2-layer.zip" \
+            --query LayerVersionArn \
+            --output text)"
+
+          echo "layer_arn=${LAYER_ARN}" >> "$GITHUB_OUTPUT"
+          echo "Published layer: ${LAYER_ARN}"
+
+      - name: Attach latest layer version to function
+        run: |
+          LAYER_ARN="${{ steps.publish.outputs.layer_arn }}"
+          EXISTING_LAYERS="$(aws lambda get-function-configuration --function-name "${DIRECT_LAMBDA_NAME}" --query 'Layers[].Arn' --output text || true)"
+
+          declare -a FINAL_LAYERS
+          FINAL_LAYERS+=("${LAYER_ARN}")
+
+          for ARN in ${EXISTING_LAYERS}; do
+            if [ -z "$ARN" ] || [ "$ARN" = "None" ]; then
+              continue
+            fi
+
+            case "$ARN" in
+              arn:aws:lambda:*:*:layer:${DIRECT_LAMBDA_LAYER_NAME}:*)
+                # Replace older versions of this managed layer with the newly published ARN.
+                ;;
+              *)
+                FINAL_LAYERS+=("$ARN")
+                ;;
+            esac
+          done
+
+          aws lambda update-function-configuration \
+            --function-name "${DIRECT_LAMBDA_NAME}" \
+            --layers "${FINAL_LAYERS[@]}" >/dev/null
+
+          aws lambda wait function-updated-v2 --function-name "${DIRECT_LAMBDA_NAME}"
+
+      - name: Layer deployment summary
+        run: |
+          echo "Layer published and attached successfully."
+          echo "Function: ${DIRECT_LAMBDA_NAME}"
+          echo "Layer:    ${{ steps.publish.outputs.layer_arn }}"

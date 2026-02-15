@@ -96,6 +96,7 @@ After setting `LAMBDA_URL`, trigger a new Amplify build so the frontend picks it
 Workflow:
 
 - `/Users/kyryll/Downloads/lambda-terraform-test1/.github/workflows/deploy-direct-lambda-v2.yml`
+- `/Users/kyryll/Downloads/lambda-terraform-test1/.github/workflows/publish-direct-lambda-v2-layer.yml` (dependency layer management)
 
 Trigger:
 
@@ -121,8 +122,26 @@ Required setup (once, manual):
 5. Do not set long-lived AWS access keys in Lambda env vars; Lambda should use execution-role credentials.
 6. Optional: set repo variable `DIRECT_LAMBDA_NAME` if you want a different dedicated name.
    The workflow blocks names that look like Amplify-managed lambdas.
+7. If you use layer mode, ensure the CI role (`AWS_ROLE_TO_ASSUME`) can:
+   - `lambda:PublishLayerVersion`
+   - `lambda:GetFunctionConfiguration`
+   - `lambda:UpdateFunctionConfiguration`
+   - `lambda:UpdateFunctionCode`
 
 Dependency packaging mode:
 
-- `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false` (default): bundle dependencies into a single CommonJS `index.js` and zip only that file.
+- `DIRECT_LAMBDA_USE_LAYER=true`: package lean code and resolve `@aws/aurora-dsql-node-postgres-connector` from Lambda layer.
+  If no layer is attached, deployment fails fast with a clear error.
+- `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false` (default when `DIRECT_LAMBDA_USE_LAYER=false`): bundle dependencies into a single CommonJS `index.js` and zip only that file.
 - `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=true`: zip includes `index.mjs`, `package.json`, and `node_modules`.
+
+Layer flow (optimized):
+
+1. Run `/Users/kyryll/Downloads/lambda-terraform-test1/.github/workflows/publish-direct-lambda-v2-layer.yml` once (or after dependency changes).
+2. Set repo variable `DIRECT_LAMBDA_USE_LAYER=true`.
+3. Keep `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false`.
+4. Continue deploying code via `/Users/kyryll/Downloads/lambda-terraform-test1/.github/workflows/deploy-direct-lambda-v2.yml`.
+
+Optional layer settings:
+
+- `DIRECT_LAMBDA_LAYER_NAME` (repo variable), default: `db-query-direct-v2-deps`

@@ -21,6 +21,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       DIRECT_LAMBDA_NAME: ${{ vars.DIRECT_LAMBDA_NAME || 'db-query-direct-v2-isolated' }}
+      DIRECT_LAMBDA_USE_LAYER: ${{ vars.DIRECT_LAMBDA_USE_LAYER || 'false' }}
       DIRECT_LAMBDA_INCLUDE_NODE_MODULES: ${{ vars.DIRECT_LAMBDA_INCLUDE_NODE_MODULES || 'false' }}
     steps:
       - name: Checkout
@@ -36,6 +37,8 @@ jobs:
           [ -n "$AWS_REGION" ] || { echo "Missing AWS region. Set repo variable AWS_REGION or secret AWS_REGION."; exit 1; }
           [ -n "$AWS_ROLE_TO_ASSUME" ] || { echo "Missing secret AWS_ROLE_TO_ASSUME."; exit 1; }
           [[ "$AWS_ROLE_TO_ASSUME" == arn:aws:iam::*:role/* ]] || { echo "AWS_ROLE_TO_ASSUME must be a full IAM role ARN."; exit 1; }
+          [[ "$DIRECT_LAMBDA_USE_LAYER" == "true" || "$DIRECT_LAMBDA_USE_LAYER" == "false" ]] || { echo "DIRECT_LAMBDA_USE_LAYER must be true or false."; exit 1; }
+          [[ "$DIRECT_LAMBDA_INCLUDE_NODE_MODULES" == "true" || "$DIRECT_LAMBDA_INCLUDE_NODE_MODULES" == "false" ]] || { echo "DIRECT_LAMBDA_INCLUDE_NODE_MODULES must be true or false."; exit 1; }
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -46,7 +49,20 @@ jobs:
       - name: Package Lambda artifact
         run: |
           rm -f lambda-direct-v2.zip
-          if [ "${DIRECT_LAMBDA_INCLUDE_NODE_MODULES}" = "true" ]; then
+          if [ "${DIRECT_LAMBDA_USE_LAYER}" = "true" ]; then
+            echo "Packaging lean code for layer-based dependencies."
+            cd lambda-direct-v2
+            npm install --omit=dev
+            npx esbuild index.mjs \
+              --bundle \
+              --platform=node \
+              --target=node20 \
+              --format=cjs \
+              --external:@aws/aurora-dsql-node-postgres-connector \
+              --outfile=dist/index.js
+            cd dist
+            zip -r ../../lambda-direct-v2.zip index.js
+          elif [ "${DIRECT_LAMBDA_INCLUDE_NODE_MODULES}" = "true" ]; then
             echo "Packaging with node_modules in function zip."
             cd lambda-direct-v2
             npm install --omit=dev
@@ -84,6 +100,15 @@ jobs:
             echo "Create it once manually (runtime nodejs20.x, handler index.handler, role/env/function-url), then rerun."
             exit 1
           }
+
+          if [ "${DIRECT_LAMBDA_USE_LAYER}" = "true" ]; then
+            LAYER_COUNT="$(aws lambda get-function --function-name "$LAMBDA_NAME" --query 'length(Configuration.Layers)' --output text)"
+            if [ "$LAYER_COUNT" = "0" ]; then
+              echo "DIRECT_LAMBDA_USE_LAYER=true but the function has no attached layers."
+              echo "Run the Publish Direct Lambda v2 Layer workflow first, or attach a compatible layer manually."
+              exit 1
+            fi
+          fi
 
           aws lambda update-function-code \
             --function-name "$LAMBDA_NAME" \
