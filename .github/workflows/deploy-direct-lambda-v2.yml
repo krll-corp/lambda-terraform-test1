@@ -59,10 +59,10 @@ jobs:
               --bundle \
               --platform=node \
               --target=node20 \
-              --format=esm \
-              --outfile=dist/index.mjs
+              --format=cjs \
+              --outfile=dist/index.js
             cd dist
-            zip -r ../../lambda-direct-v2.zip index.mjs
+            zip -r ../../lambda-direct-v2.zip index.js
           fi
 
       - name: Deploy Lambda code (update-function-code only)

@@ -124,5 +124,5 @@ Required setup (once, manual):
 
 Dependency packaging mode:
 
-- `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false` (default): bundle dependencies into a single `index.mjs` and zip only that file.
+- `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=false` (default): bundle dependencies into a single CommonJS `index.js` and zip only that file.
 - `DIRECT_LAMBDA_INCLUDE_NODE_MODULES=true`: zip includes `index.mjs`, `package.json`, and `node_modules`.
